@@ -1,0 +1,46 @@
+/* Global Styles */
+
+:root {
+  --color-bg-light: #ffffff;
+  --color-text-light: #333333;
+  --color-bg-dark: #1e1e1e;
+  --color-text-dark: #e0e0e0;
+  --color-border-light: #dddddd;
+  --color-border-dark: #444444;
+  --color-accent: #0ea5e9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .main {
+    flex-direction: column !important;
+  }
+
+  .editor-panel,
+  .preview-panel {
+    width: 100% !important;
+  }
+}

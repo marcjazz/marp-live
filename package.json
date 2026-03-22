@@ -1,0 +1,46 @@
+{
+  "name": "marp-live",
+  "version": "1.0.0",
+  "description": "Live Markdown-to-Slides editor with Marp and Mermaid support",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .ts,.svelte",
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "keywords": [
+    "marp",
+    "slides",
+    "markdown",
+    "mermaid",
+    "presentation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.28.0",
+  "dependencies": {
+    "@marp-team/marp-core": "^3.7.0",
+    "mermaid": "^10.9.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.0.3",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0",
+    "@vitest/ui": "^1.1.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-svelte": "^2.35.1",
+    "jsdom": "^23.0.0",
+    "svelte": "^4.2.8",
+    "typescript": "^5.3.3",
+    "util": "^0.12.5",
+    "vite": "^5.0.8",
+    "vite-plugin-lib-inject-css": "^2.2.2",
+    "vite-plugin-node-polyfills": "^0.25.0",
+    "vite-plugin-string": "^1.2.3",
+    "vitest": "^1.1.0"
+  }
+}
