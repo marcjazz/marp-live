@@ -57,9 +57,60 @@ async function processMermaidBlocks(markdown: string): Promise<string> {
     }
 }
 
+/**
+ * Extract custom styles from Marp's data-style attributes
+ * Marp stores frontmatter styles in data-style but doesn't inject them when script: false
+ */
+function extractCustomStyles(htmlContent: string): string {
+    // Match data-style attribute - handle multiline content
+    const styleRegex = /data-style="([\s\S]*?)"/g;
+    const styles: Set<string> = new Set(); // Use Set to dedupe
+    let match;
+    
+    while ((match = styleRegex.exec(htmlContent)) !== null) {
+        const style = match[1].trim();
+        if (style) {
+            styles.add(style);
+        }
+    }
+    
+    if (styles.size === 0) {
+        return '';
+    }
+    
+    // Get unique styles (first one only since they're all the same per slide deck)
+    const uniqueStyles = Array.from(styles)[0];
+    
+    // Scope selectors to match Marp's specificity: div.marpit>svg>foreignObject>section
+    const scopedStyles = uniqueStyles.replace(
+        /([^{}@][^{}]*)\{([^{}]*)\}/g,
+        (fullMatch, selector, properties) => {
+            const trimmedSelector = selector.trim();
+            // Skip @rules, empty selectors, or already scoped
+            if (!trimmedSelector || trimmedSelector.startsWith('@') || trimmedSelector.includes('marpit')) {
+                return fullMatch;
+            }
+            
+            // Handle multiple selectors (comma-separated)
+            const scopedSelectors = trimmedSelector.split(',').map((s: string) => {
+                const sel = s.trim();
+                if (sel === 'section') {
+                    return `div.marpit>svg>foreignObject>section`;
+                }
+                return `div.marpit>svg>foreignObject>section ${sel}`;
+            }).join(', ');
+            
+            return `${scopedSelectors} {${properties}}`;
+        }
+    );
+    
+    return `/* Custom styles from markdown frontmatter */\n${scopedStyles}`;
+}
+
 function wrapInHtmlDocument(htmlContent: string, cssContent: string, theme: 'light' | 'dark'): string {
     const bgColor = theme === 'dark' ? '#1e1e1e' : '#e0e0e0';
     const textColor = theme === 'dark' ? '#e0e0e0' : '#333';
+    const customStyles = extractCustomStyles(htmlContent);
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -69,13 +120,26 @@ function wrapInHtmlDocument(htmlContent: string, cssContent: string, theme: 'lig
   <title>Marp Slides</title>
   <style>
     ${cssContent}
+    ${customStyles}
     /* Basic styles for preview */
     body { background-color: ${bgColor}; color: ${textColor}; margin: 0; padding: 2rem; }
     .mermaid-diagram { text-align: center; }
     
-    /* Enhance the visual of slides in the preview window */
+/* Enhance the visual of slides in the preview window */
     .marpit { display: flex; flex-direction: column; align-items: center; gap: 2rem; }
     .marpit > svg { box-shadow: 0 10px 30px rgba(0,0,0,0.2); border-radius: 8px; width: 100%; max-width: 1000px; height: auto; background-color: ${theme === 'dark' ? '#000' : '#fff'}; }
+
+    ${theme === 'dark' ? `
+      div.marpit > svg > foreignObject > section { 
+        filter: invert(1) hue-rotate(180deg) !important;
+      }
+      div.marpit > svg > foreignObject > section img,
+      div.marpit > svg > foreignObject > section video,
+      div.marpit > svg > foreignObject > section .mermaid-diagram,
+      div.marpit > svg > foreignObject > section svg {
+        filter: invert(1) hue-rotate(180deg) !important;
+      }
+    ` : ''}
 
     /* Presentation mode */
     body.presentation-mode { padding: 0; background-color: #000; overflow: hidden; }
@@ -88,8 +152,14 @@ function wrapInHtmlDocument(htmlContent: string, cssContent: string, theme: 'lig
   ${htmlContent}
   <script>
     (function() {
+      // Theme synchronization
+      if ('${theme}' === 'dark') {
+        document.querySelectorAll('section').forEach(s => s.classList.add('invert'));
+      }
+
       let currentSlideIndex = 0;
       let svgs = [];
+      let isPresentation = false;
 
       function updateSlides() {
         svgs.forEach((svg, index) => {
@@ -101,11 +171,12 @@ function wrapInHtmlDocument(htmlContent: string, cssContent: string, theme: 'lig
         });
       }
 
-      document.addEventListener('fullscreenchange', () => {
-        svgs = document.querySelectorAll('.marpit > svg');
-        if (document.fullscreenElement) {
+      window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'enter-fullscreen') {
+          isPresentation = true;
           document.body.classList.add('presentation-mode');
-          // Find the most visible slide to start from
+          svgs = document.querySelectorAll('.marpit > svg');
+          
           let minDistance = Infinity;
           svgs.forEach((svg, index) => {
             const rect = svg.getBoundingClientRect();
@@ -116,10 +187,10 @@ function wrapInHtmlDocument(htmlContent: string, cssContent: string, theme: 'lig
             }
           });
           updateSlides();
-        } else {
+        } else if (e.data && e.data.type === 'exit-fullscreen') {
+          isPresentation = false;
           document.body.classList.remove('presentation-mode');
           svgs.forEach(svg => svg.classList.remove('active'));
-          // Scroll back to the slide we were on
           if (svgs[currentSlideIndex]) {
              svgs[currentSlideIndex].scrollIntoView({ behavior: 'auto', block: 'center' });
           }
@@ -127,7 +198,7 @@ function wrapInHtmlDocument(htmlContent: string, cssContent: string, theme: 'lig
       });
 
       document.addEventListener('keydown', (e) => {
-        if (!document.fullscreenElement) return;
+        if (!isPresentation) return;
         
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
           e.preventDefault();
@@ -145,13 +216,14 @@ function wrapInHtmlDocument(htmlContent: string, cssContent: string, theme: 'lig
           e.preventDefault();
           currentSlideIndex = svgs.length - 1;
           updateSlides();
+        } else if (e.key === 'Escape') {
+          // Tell parent to exit fullscreen just in case
+          window.parent.postMessage({ type: 'exit-fullscreen-request' }, '*');
         }
       });
       
-      // Click navigation in fullscreen
       document.addEventListener('click', (e) => {
-         if (!document.fullscreenElement) return;
-         // left click goes forward, unless clicked on left 20% of screen
+         if (!isPresentation) return;
          if (e.clientX < window.innerWidth * 0.2) {
              currentSlideIndex = Math.max(currentSlideIndex - 1, 0);
          } else {
@@ -193,7 +265,7 @@ export function renderMarp(
       try {
         const processedMarkdown = await processMermaidBlocks(markdown);
         const Marp = await getMarpClass();
-        const marp = new Marp({ html: true });
+        const marp = new Marp({ html: true, script: false });
         const result = marp.render(processedMarkdown);
         resolve(wrapInHtmlDocument(result.html, result.css, theme));
       } catch (error) {

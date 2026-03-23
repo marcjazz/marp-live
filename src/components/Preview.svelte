@@ -44,13 +44,38 @@
     }
   }
 
+  function handleFullscreenChange(): void {
+    if (document.fullscreenElement === iframeElement) {
+      if (iframeElement.contentWindow) {
+        iframeElement.contentWindow.postMessage({ type: 'enter-fullscreen' }, '*');
+      }
+    } else {
+      if (iframeElement.contentWindow) {
+        iframeElement.contentWindow.postMessage({ type: 'exit-fullscreen' }, '*');
+      }
+    }
+  }
+
+  function handleMessage(event: MessageEvent): void {
+    if (event.data && event.data.type === 'exit-fullscreen-request') {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
+
   onMount(() => {
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('message', handleMessage);
+
     const unsubscribe = markdown.subscribe((content) => {
       scheduleUpdate(content);
     });
 
     return () => {
       unsubscribe();
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('message', handleMessage);
       clearTimeout(updateTimeout);
     };
   });
@@ -66,7 +91,7 @@
   <div class="preview-header">
     <span class="label">Preview {isLoading ? '(updating...)' : ''}</span>
     <button class="btn-present" on:click={enterFullscreen} title="Present Fullscreen">
-      🖥️ Present
+      🖥️
     </button>
   </div>
   <iframe
@@ -74,6 +99,7 @@
     title="Slide Preview"
     class="preview-iframe"
     sandbox="allow-scripts allow-same-origin"
+    allowfullscreen
   />
 </div>
 
@@ -114,19 +140,21 @@
   }
 
   .btn-present {
-    padding: 0.35rem 0.75rem;
-    font-size: 0.85rem;
-    background-color: #0284c7;
-    color: white;
+    padding: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    background-color: transparent;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.2s;
-    font-weight: bold;
+    transition: transform 0.2s, opacity 0.2s;
+    opacity: 0.8;
   }
 
   .btn-present:hover {
-    background-color: #0369a1;
+    opacity: 1;
+    transform: scale(1.1);
   }
 
   .preview-iframe {

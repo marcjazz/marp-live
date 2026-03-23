@@ -14,8 +14,7 @@
     PreviewComponent = module.default;
   });
 
-  // Store for reactive markdown content
-  let markdown: Writable<string> = writable(`---
+  const defaultMarkdown = `---
 marp: true
 theme: default
 class: lead
@@ -24,10 +23,13 @@ backgroundColor: #f0f4f8
 backgroundImage: url('https://marp.app/assets/hero-background.svg')
 style: |
   section {
+    --h1-color: #0284c7;
+    --h2-color: #0369a1;
+    --h3-color: #0c4a6e;
+    --color-foreground: #1e293b;
     font-family: 'Inter', -apple-system, sans-serif;
   }
   h1 {
-    color: #0284c7;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
   }
   .highlight {
@@ -54,15 +56,15 @@ Create *mind-blowing* presentations directly in your browser.
 
 ## 📊 **Mermaid Diagrams Built-in**
 
-Visualize your architecture, workflows, and logic with \`mermaid\`.
+Visualize your architecture, workflows, and logic with ${'`'}mermaid${'`'}.
 
-\`\`\`mermaid
+${'```'}mermaid
 graph TD
     A[Markdown] -->|Marp Core| B(HTML slides)
     B --> C{Preview}
     C -->|Happy| D[Export & Present]
     C -->|Need tweaks| A
-\`\`\`
+${'```'}
 
 ---
 
@@ -78,14 +80,14 @@ Seamlessly switch themes for the perfect vibe.
 
 ## 💻 **Code Blocks that Pop**
 
-\`\`\`js
+${'```'}js
 // Render slides seamlessly
 async function renderMarp(markdown) {
   const marp = new Marp({ html: true });
   const { html, css } = marp.render(markdown);
   return { html, css };
 }
-\`\`\`
+${'```'}
 
 *Syntax highlighting included!*
 
@@ -95,7 +97,10 @@ async function renderMarp(markdown) {
 
 Start writing your markdown on the left.
 Your audience is waiting!
-`);
+`;
+
+  // Store for reactive markdown content
+  let markdown: Writable<string> = writable(defaultMarkdown);
 
   let theme: 'light' | 'dark' = 'light';
 
